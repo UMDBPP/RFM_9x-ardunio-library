@@ -6,13 +6,13 @@ RFM_9x radio(CSPin);
 
 void setup() {
   Serial.begin(9600);
-  radio.init(0x90, 0x70);
+  radio.init(SF9, BW125);
 }
 
 void loop() {
   //Serial.println(radio.recvID(), HEX);
   //t_test();
-  r_test();
+  //r_test();
   //delay(1000);
 }
 

@@ -1,12 +1,12 @@
 #ifndef Morse_h
 #define Morse_h
-
+// Libraries
 #include "Arduino.h"
 #include <SPI.h>
-
+// Register name defintions for ease of use
 #define RegFifo 0x00
 #define RegOpMode 0x01
-#define RegFrMsb 0x06 
+#define RegFrMsb 0x06
 #define RegFrMid 0x07
 #define RegFrLsb 0x08
 #define RegPaConfig 0x09
@@ -58,32 +58,55 @@
 #define RegAgcThresh2 0x63
 #define RegAgcThresh3 0x64
 #define RegPll 0x70
-
-enum modes{
-  SLEEP, //0
-  STDBY, //1
-  FSTX, //2
-  TX, //3
-  FXRX, //4
-  RXCONTINUOUS, //5
-  RXSINGLE, //6
-  CAD //7
+// enumerations for some radio settings
+enum modes {
+  SLEEP,         //0
+  STDBY,         //1
+  FSTX,          //2
+  TX,            //3
+  FXRX,          //4
+  RXCONTINUOUS,  //5
+  RXSINGLE,      //6
+  CAD            //7
 };
 
-class RFM_9x{
-  public:
-    RFM_9x(byte CS);
-    void init(byte SpreadingFactor,  byte Bandwidth);
-    byte recvID();
-    byte receive(byte *msg);
-    void transmit(byte *msg, byte length);
-  private:
-    byte pinCS;
-    void radio_mode(modes rMode);
-    void radio_reg_write(byte addr, byte val);
-    byte radio_reg_read(byte addr);
-    void fifo_write(byte *msg, byte addr, byte len);
-    void fifo_read(byte *msg, byte addr, byte len);
+enum SF {
+  SF6,
+  SF7,
+  SF8,
+  SF9,
+  SF10,
+  SF11,
+  SF12
+};
+
+enum BW {
+  BW7_8,
+  BW10_4,
+  BW15_6,
+  BW20_8,
+  BW31_25,
+  BW41_7,
+  BW62_5,
+  BW125,
+  BW250,
+  BW500
+};
+
+class RFM_9x {
+public:
+  RFM_9x(byte CS);// Constructor for general setup
+  void init(SF SpreadingFactor, BW Bandwidth); // Initalize the communication stuffs and setup the radio
+  byte recvID(); // get the ID of the radio
+  byte receive(byte *msg); // start radio looking for packet puts packet into msg and return the packet length
+  void transmit(byte *msg, byte length); // transmit the contents of msg with length as length of msg
+private:
+  byte pinCS; // CS pin, only one set of SPI pins so no need to set that up
+  void radio_mode(modes rMode); // change the mode the radio is operating in
+  void radio_reg_write(byte addr, byte val); // Write val to the register at addr
+  byte radio_reg_read(byte addr); // returns value in register at addr
+  void fifo_write(byte *msg, byte addr, byte len); // writes msg to addr in the FIFO for len bytes
+  void fifo_read(byte *msg, byte addr, byte len); //  reads to msg from the FIFO starting at addr for len bytes
 };
 
 
