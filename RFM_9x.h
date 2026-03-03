@@ -101,6 +101,7 @@ public:
   int packet_RSSI(); // gets the Received Signal Strength Indicator of last packet
   byte receive(byte *msg); // start radio looking for packet puts packet into msg and return the packet length
   void transmit(byte *msg, byte length); // transmit the contents of msg with length as length of msg
+  void fifo_print();
 private:
   byte pinCS; // CS pin, only one set of SPI pins so no need to set that up
   void radio_mode(modes rMode); // change the mode the radio is operating in
