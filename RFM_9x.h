@@ -96,7 +96,7 @@ enum BW {
 class RFM_9x {
 public:
   RFM_9x(byte CS);// Constructor for general setup
-  void init(SF SpreadingFactor, BW Bandwidth); // Initalize the communication stuffs and setup the radio
+  void init(SF SpreadingFactor, BW Bandwidth, unsigned long freq); // Initalize the communication stuffs and setup the radio
   byte recvID(); // get the ID of the radio
   int packet_RSSI(); // gets the Received Signal Strength Indicator of last packet
   byte receive(byte *msg); // start radio looking for packet puts packet into msg and return the packet length

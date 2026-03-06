@@ -13,26 +13,27 @@ RFM_9x::RFM_9x(byte CS){
 }
 
 // Public methods
-void RFM_9x::init(SF SpreadingFactor,  BW Bandwidth){ // Spreading Factors SF6, SF7, SF8, SF9, SF10, SF11, SF12   Bandwidths BW7_8, BW10_4, BW15_6, BW20_8, BW31_25, BW41_7, BW62_5, BW125, BW250, BW500
+void RFM_9x::init(SF SpreadingFactor,  BW Bandwidth, unsigned long freq){ // Spreading Factors SF6, SF7, SF8, SF9, SF10, SF11, SF12   Bandwidths BW7_8, BW10_4, BW15_6, BW20_8, BW31_25, BW41_7, BW62_5, BW125, BW250, BW500
   pinMode(pinCS, OUTPUT); //set CS pin as output
   digitalWrite(pinCS, HIGH); // CS is active low so set it high
   SPI.begin();
   SPI.beginTransaction(SPISettings(5*1000*1000, MSBFIRST, SPI_MODE0));
   this->radio_mode(SLEEP);
-  this->radio_reg_write(RegOpMode, 0x88);// set the radio to lora mode. Must be done in sleep
+  this->radio_reg_write(RegOpMode, 0x88);// set the radio to lora mode. Must be done in sleep. Also give access to LF test registers
   this->radio_mode(STDBY);
-  this->radio_reg_write(RegFrMsb, 0x6C);// set the carrier frequency
-  this->radio_reg_write(RegFrMid, 0x80);
-  this->radio_reg_write(RegFrLsb, 0x00);
-  this->radio_reg_write(RegFifoTxBaseAddr, 0x00); // use entire fifo for both TX and RX
-  this->radio_reg_write(RegFifoRxBaseAddr, 0x00);
-  this->radio_reg_write(RegModemConfig1, ((Bandwidth)<<4)|0x02); // configure modulation
-  this->radio_reg_write(RegModemConfig2, (((SpreadingFactor+6)<<4)&0xF1));
-  this->radio_reg_write(RegSymbTimeoutLsb, 0xFF); // Increase receive timeout to max
-  this->radio_reg_write(RegPreambleLsb, 0x06);
+  unsigned long f_set = (freq*pow(2,19))/(32*pow(10,6));
+  this->radio_reg_write(RegFrMsb, (f_set&0xFF0000)>>16);// set the carrier frequency
+  this->radio_reg_write(RegFrMid, (f_set&0x00FF00)>>8);
+  this->radio_reg_write(RegFrLsb, (f_set&0x0000FF));
+  this->radio_reg_write(RegFifoTxBaseAddr, 0x00); // use entire fifo for both TX
+  this->radio_reg_write(RegFifoRxBaseAddr, 0x00); // use entire fifo for both RX
+  this->radio_reg_write(RegModemConfig1, ((Bandwidth)<<4)|0x02); // configure bandwidth, coding rate, and set headers to explict
+  this->radio_reg_write(RegModemConfig2, (((SpreadingFactor+6)<<4)&0xF0)); // configure spreading factor, single transmit mode, no CRC, and 2 MSB of timeout to 0
+  this->radio_reg_write(RegSymbTimeoutLsb, 0xFF); // Increase receive timeout
+  this->radio_reg_write(RegPreambleLsb, 0x06);// set preamble length to short preable leave preamble MSB as 0
   this->radio_reg_write(RegPaConfig, 0xFF); // set to max power
-  this->radio_reg_write(RegModemConfig3, 0x0C); // more configuration
-  // set fifo to all 0
+  this->radio_reg_write(RegModemConfig3, 0x0C); // turn on low data rate optimiztion, set to internal AGC loop
+  // clear fifo with all 0
   this->radio_reg_write(RegFifoAddrPtr, 0);
   digitalWrite(pinCS, LOW);
   SPI.transfer(0x80|RegFifo); // transmit read address to fifo register. MSB set to 1 to indicate write
@@ -47,17 +48,18 @@ byte RFM_9x::recvID(){// exposes private function with protections
 }
 
 int RFM_9x::packet_RSSI(){
-  return(-157 + int(this->radio_reg_read(RegPktRssiValue)));
+  return(-164 + int(this->radio_reg_read(RegPktRssiValue)));
 }
 
 byte RFM_9x::receive(byte *msg){
   byte temp = this->radio_reg_read(RegFifoRxBaseAddr);// retreive RX start address
   this->radio_reg_write(RegFifoAddrPtr, temp);// place RX start address into fifo edit address
   this->radio_reg_write(RegIrqFlags, 0xFF); //clear interupts
-  radio_mode(RXSINGLE); // start receive
+  radio_mode(RXCONTINUOUS); // start receive
   while(!(radio_reg_read(RegIrqFlags)&0x40)){// wait till RX done irq happens
     delay(10);
   }
+  radio_mode(STDBY);
   byte addr = this->radio_reg_read(FifoRxCurrentAddr);// get start address of packet in FIFO
   byte length = radio_reg_read(RegRxNbBytes); //get the length of the packet
   this->fifo_read(msg, addr, length); // read the packet from the fifo
