@@ -8,8 +8,14 @@
 #include "RFM_9x.h"
 
 //constructor
-RFM_9x::RFM_9x(byte CS){ 
+RFM_9x::RFM_9x(byte CS, char callsign1, char callsign2, char callsign3, char callsign4, char callsign5, char callsign6){ 
   pinCS = CS;
+  CallSign[0] = byte(callsign1);
+  CallSign[1] = byte(callsign2);
+  CallSign[2] = byte(callsign3);
+  CallSign[3] = byte(callsign4);
+  CallSign[4] = byte(callsign5);
+  CallSign[5] = byte(callsign6);
 }
 
 // Public methods
@@ -28,7 +34,7 @@ void RFM_9x::init(SF SpreadingFactor,  BW Bandwidth, unsigned long freq){ // Spr
   this->radio_reg_write(RegFifoTxBaseAddr, 0x00); // use entire fifo for both TX
   this->radio_reg_write(RegFifoRxBaseAddr, 0x00); // use entire fifo for both RX
   this->radio_reg_write(RegModemConfig1, ((Bandwidth)<<4)|0x02); // configure bandwidth, coding rate, and set headers to explict
-  this->radio_reg_write(RegModemConfig2, (((SpreadingFactor+6)<<4)&0xF0)); // configure spreading factor, single transmit mode, no CRC, and 2 MSB of timeout to 0
+  this->radio_reg_write(RegModemConfig2, (((SpreadingFactor+6)<<4)&0xF0)|0x04); // configure spreading factor, single transmit mode, yes CRC, and 2 MSB of timeout to 0
   this->radio_reg_write(RegSymbTimeoutLsb, 0xFF); // Increase receive timeout
   this->radio_reg_write(RegPreambleLsb, 0x06);// set preamble length to short preable leave preamble MSB as 0
   this->radio_reg_write(RegPaConfig, 0xFF); // set to max power
@@ -51,7 +57,7 @@ int RFM_9x::packet_RSSI(){
   return(-164 + int(this->radio_reg_read(RegPktRssiValue)));
 }
 
-byte RFM_9x::receive(byte *msg){
+int RFM_9x::receive(byte *msg){
   byte temp = this->radio_reg_read(RegFifoRxBaseAddr);// retreive RX start address
   this->radio_reg_write(RegFifoAddrPtr, temp);// place RX start address into fifo edit address
   this->radio_reg_write(RegIrqFlags, 0xFF); //clear interupts
@@ -59,18 +65,27 @@ byte RFM_9x::receive(byte *msg){
   while(!(radio_reg_read(RegIrqFlags)&0x40)){// wait till RX done irq happens
     delay(10);
   }
+  if(radio_reg_read(RegIrqFlags)&0x20){
+    return(-1);
+  }
   radio_mode(STDBY);
   byte addr = this->radio_reg_read(FifoRxCurrentAddr);// get start address of packet in FIFO
   byte length = radio_reg_read(RegRxNbBytes); //get the length of the packet
-  this->fifo_read(msg, addr, length); // read the packet from the fifo
+  byte *msgtemp = (byte*)malloc(length);
+  this->fifo_read(msgtemp, addr, length); // read the packet from the fifo
+  for(int i = 0; i<length-6; i++){
+    msg[i] = msgtemp[i+6];
+  }
+  free(msgtemp);
   return(length);
 }
 
 void RFM_9x::transmit(byte *msg, byte length){
   this->radio_reg_write(RegIrqFlags, 0xFF); //clear interupts
   byte temp = this->radio_reg_read(RegFifoTxBaseAddr); // get start addres for transmit
-  this->fifo_write(msg, temp, length); // write message to fifo
-  this->radio_reg_write(RegPayloadLength, length); // right the length of the paylaod
+  this->fifo_write(CallSign, temp, 6); // Callsign to FIFO
+  this->fifo_write(msg, temp+6, length); // write message to fifo
+  this->radio_reg_write(RegPayloadLength, length+6); // right the length of the paylaod
   this->radio_mode(TX); // start transmit
   while(!(radio_reg_read(RegIrqFlags)&0x08)){ // wait for TXdone irq
     delay(10);

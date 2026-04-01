@@ -95,15 +95,16 @@ enum BW {
 
 class RFM_9x {
 public:
-  RFM_9x(byte CS);// Constructor for general setup
+  RFM_9x(byte CS, char callsign1, char callsign2, char callsign3, char callsign4, char callsign5, char callsign6);// Constructor for general setup
   void init(SF SpreadingFactor, BW Bandwidth, unsigned long freq); // Initalize the communication stuffs and setup the radio
   byte recvID(); // get the ID of the radio
   int packet_RSSI(); // gets the Received Signal Strength Indicator of last packet
-  byte receive(byte *msg); // start radio looking for packet puts packet into msg and return the packet length
+  int receive(byte *msg); // start radio looking for packet puts packet into msg and return the packet length
   void transmit(byte *msg, byte length); // transmit the contents of msg with length as length of msg
   void fifo_print();
 private:
   byte pinCS; // CS pin, only one set of SPI pins so no need to set that up
+  byte CallSign[6]; // Callsign of user for HAM idenification
   void radio_mode(modes rMode); // change the mode the radio is operating in
   void radio_reg_write(byte addr, byte val); // Write val to the register at addr
   byte radio_reg_read(byte addr); // returns value in register at addr

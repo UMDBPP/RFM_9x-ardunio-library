@@ -3,10 +3,10 @@
 #include <Adafruit_BME280.h>
 #include "RFM_9x.h"
 
-#define SEALEVELPRESSURE_HPA (1026.08)  // Standard sea-level pressure
+#define SEALEVELPRESSURE_HPA (1022.7)  // Standard sea-level pressure
 #define CSPin 10
 
-RFM_9x radio(CSPin); // radio object
+RFM_9x radio(CSPin, 'A', 'C', '3', 'P', 'Y', ' '); // radio object
 Adafruit_BME280 bme; // BME280 object
 
 
@@ -52,14 +52,18 @@ void r_THPA_time(){
   float Pres;
   float Alt;
   unsigned long time;
-  byte message[20] = {0x00, 0x00, 0x00, 0x00, 0x00};
-  byte len = radio.receive(message);
+  byte message[20] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  int len = radio.receive(message);
+  if(len == -1){
+    Serial.println("Payload failed CRC");
+    return;
+  }
   memcpy(&temp, message, 4);
   memcpy(&Hum, message+4, 4);
   memcpy(&Pres, message+8, 4);
   memcpy(&Alt, message+12, 4);
   memcpy(&time, message+16, 4);
-  Serial.print("Packet received Length: ");
+  Serial.print("Packet_received_Length: ");
   Serial.print(len);
   Serial.print(", Temperature: ");
   Serial.print(temp);
@@ -69,9 +73,9 @@ void r_THPA_time(){
   Serial.print(Pres);
   Serial.print("hPa, Altitude: ");
   Serial.print(Alt);
-  Serial.print("m, Time on: ");
+  Serial.print("m, Time_on: ");
   Serial.print(time);
-  Serial.print("ms, Signal Strength: ");
+  Serial.print("ms, Signal_Strength: ");
   Serial.print(radio.packet_RSSI());
   Serial.println("dBm");
 }
